@@ -7,8 +7,12 @@ import urllib.request
 import traceback
 import zipfile
 
+import numpy as np
+import pandas as pd
+
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
+REVIEWERS = ["Dennis+Schwartz", "James+Berardinelli", "Steve+Rhodes"]
 
 
 def download_data(override=False, path="./data", url=URL):
@@ -39,7 +43,33 @@ def download_data(override=False, path="./data", url=URL):
         zip_object.extractall(path)
         print("\nDone!")
         return 0
-    except:
+    except Exception:
         print("An error occured. DEBUG INFO:")
         print(traceback.format_exc())
         return 1
+
+
+def load_data(path="./data"):
+    """ Loads text data and review scores to a pandas dataframe.
+    Arguments:
+        path (str), default: ./data
+    Returns:
+        pd.DataFrame(columns=["rating", "text"])
+    """
+    data = pd.DataFrame({'ratings': [], 'text': []})
+    for reviewer in REVIEWERS:
+        ids = np.loadtxt(path + '/scaledata/' + reviewer + '/id.' + reviewer)
+        files = ["%s/scale_whole_review/%s/txt.parag/%0.0f.txt" %
+                 (path, reviewer, id)
+                 for id in ids]
+        ratings = np.loadtxt(path + '/scaledata/' + reviewer +
+                             '/rating.' + reviewer)
+        text_data = []
+        for text_file in files:
+            with open(text_file, encoding='latin-1') as fhandle:
+                text_data.append(fhandle.read())
+
+        data = data.append(pd.DataFrame({'ratings': ratings,
+                                         'text': text_data}),
+                           ignore_index=True)
+    return data
