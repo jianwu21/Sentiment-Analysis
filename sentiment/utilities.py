@@ -35,9 +35,10 @@ def download_data(override=False, path="./data", url=URL):
 
     if all(checks):
         print("Data seem to be available, to force redownloading "
-              "use 'override=True'")
-        return 0
-
+              "Do you want to download agian? y/N")
+        action = getch.getch().lower()
+        if action == 'n':
+            return 0
     try:
         print("Downloading zip file, please be patient...", end='', flush=True)
         filehandle, _ = urllib.request.urlretrieve(url)
