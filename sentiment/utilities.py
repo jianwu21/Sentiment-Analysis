@@ -5,8 +5,10 @@ Includes:
 import os
 import urllib.request
 import traceback
+import re
 import zipfile
 
+from gensim.models import Word2Vec
 import numpy as np
 import pandas as pd
 
@@ -73,3 +75,29 @@ def load_data(path="./data"):
                                          'text': text_data}),
                            ignore_index=True)
     return data
+
+
+def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
+    """ Generate word2vec model using gensim and save it to disk
+    Arguments:
+        sentences (list of strings): Sentences to train the model
+        fname (str)
+        ALL ADDITIONAL KWARGS WILL BE PASSED TO WORD2VEC
+    Returns:
+        vocabulary of the model (dict-like)
+    """
+    stripped = [re.findall(r"[\w]+|[^\s\w]", x.lower()) for x in sentences]
+    model = Word2Vec(stripped, **kwargs)
+    model.save(fname)
+    return model.wv
+
+
+def load_word2vec(fname="./data/w2vmodel"):
+    """ Load a word2vec dictionary.
+    Arguments:
+        fname(str)
+    Returns:
+        vocabulary (dict-like)
+    """
+    model = Word2Vec.load(fname)
+    return model.wv
