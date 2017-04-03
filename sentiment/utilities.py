@@ -11,6 +11,7 @@ import zipfile
 from gensim.models import Word2Vec
 import numpy as np
 import pandas as pd
+import getch
 
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
@@ -77,6 +78,11 @@ def load_data(path="./data"):
     return data
 
 
+
+def tokenize(sent):
+    return re.findall(r"[\w]+|[^\s\w]", sent.lower())
+
+
 def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
     """ Generate word2vec model using gensim and save it to disk
     Arguments:
@@ -86,7 +92,22 @@ def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
     Returns:
         vocabulary of the model (dict-like)
     """
-    stripped = [re.findall(r"[\w]+|[^\s\w]", x.lower()) for x in sentences]
+    check = os.path.exists(fname)
+
+    if check:
+        print(
+            'There has been on model for word2vect.\n'
+            'Do you want to generate a new one?y/N'
+            )
+        action = getch.getch()
+
+        if action == 'n':
+            return load_word2vec()
+
+        elif action == 'y':
+            os.remove(fname)
+
+    stripped = [tokenize(x) for x in sentences]
     model = Word2Vec(stripped, **kwargs)
     model.save(fname)
     return model.wv
@@ -101,3 +122,18 @@ def load_word2vec(fname="./data/w2vmodel"):
     """
     model = Word2Vec.load(fname)
     return model.wv
+
+
+def text2vec(text_data, model=None):
+    """ Tokenization for doc
+    Arguments:
+        text_data (list of sentences)
+    Returns:
+        vectors transformed from the doc (list)
+    """
+    if model is None:
+        model = load_word2vec()
+    return [[model[w] for w in tokenize(x) if w in model.vocab]
+            for x in text_data]
+
+
