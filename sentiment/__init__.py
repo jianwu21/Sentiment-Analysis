@@ -4,6 +4,7 @@ from .utilities import (
     load_data,
     generate_word2vec, 
     load_word2vec,
+    text2vec,
     )
 
 <<<<<<< HEAD
