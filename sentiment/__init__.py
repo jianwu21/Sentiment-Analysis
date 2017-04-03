@@ -6,4 +6,4 @@ from .utilities import (
     load_word2vec,
     )
 
-from .lstm import *
+from .lstm import LSTM
