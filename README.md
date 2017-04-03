@@ -1,6 +1,10 @@
 # Sentiment Analysis
 ###### A project for Peter's class
 
+#### TODO
+
+How LSTM works? (see lstm.py)
+
 #### Help on install
 
     pip install -r requirements.txt
