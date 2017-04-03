@@ -6,4 +6,8 @@ from .utilities import (
     load_word2vec,
     )
 
+<<<<<<< HEAD
 from .lstm import LSTM
+=======
+from .lstm import *
+>>>>>>> origin/master
