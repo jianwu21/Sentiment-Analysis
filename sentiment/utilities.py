@@ -11,7 +11,6 @@ import zipfile
 from gensim.models import Word2Vec
 import numpy as np
 import pandas as pd
-import getch
 
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
@@ -92,20 +91,11 @@ def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
     Returns:
         vocabulary of the model (dict-like)
     """
-    check = os.path.exists(fname)
-
-    if check:
-        print(
-            'There has been on model for word2vect.\n'
-            'Do you want to generate a new one?y/N'
-            )
-        action = getch.getch()
-
-        if action == 'n':
+    if os.path.exists(fname):
+        action = input("There is a model for word2vect.\n"
+                       "Do you want to generate a new one? (n or any key)\n")
+        if action.lower() == 'n':
             return load_word2vec()
-
-        elif action == 'y':
-            os.remove(fname)
 
     stripped = [tokenize(x) for x in sentences]
     model = Word2Vec(stripped, **kwargs)
@@ -133,7 +123,5 @@ def text2vec(text_data, model=None):
     """
     if model is None:
         model = load_word2vec()
-    return [[model[w] for w in tokenize(x) if w in model.vocab]
+    return [np.array([model[w] for w in tokenize(x) if w in model.vocab])
             for x in text_data]
-
-
