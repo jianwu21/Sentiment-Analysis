@@ -1,6 +1,7 @@
 """ Utilities for the sentiment analysis project
-Includes:
-    check_download_data: Checks and downloads data...
+Useful ones:
+    download_data: Checks and downloads data...
+    generate_dataset: Generate train/test sets from data
 """
 import os
 import urllib.request
@@ -135,49 +136,10 @@ def text2vec(text_data, model=None, lim=0):
     return [v for v in vecs if v.shape[0] >= lim]
 
 
-def generate_dataset(data, token_lim=100, test_split=0.75,
-                     seed=43, pad=None, model=None):
-    """ Generate a train-test dataset ready for training.
-    Arguments:
-        data: (pd.DataFrame): data as given by the load_data function
-        token_lim (int): remove words with less than this many tokens
-        test_split (float): split to train / test sets
-        seed (int): Random seed argument for reliable random splitting
-        pad (int): Specific pad with zeros /truncate value. If None,
-            it is calculated mean(lengths) + 2 * std(lengths)
-        model (gensim Word2Vec vocabulary)
-    Returns:
-        X_train, y_train, X_test, y_test
-    """
-    if model is None:
-        model = load_word2vec()
-
-    vecs = [np.array([model[w] for w in tokenize(x) if w in model.vocab])
-            for x in data.text.values]
-    vals = data.ratings.values
-
-    idc = [i for i in range(len(vecs)) if vecs[i].shape[0] >= token_lim]
-
-    # Padding
-    if not isinstance(pad, int):
-        lens = [x.shape[0] for x in vecs]
-        pad = int(np.mean(lens) + 2 * np.std(lens))
-
-    padded = sequence.pad_sequences(vecs, maxlen=pad)
-
-    np.random.seed(seed)
-    perm = np.random.permutation(idc)
-
-    point = int(len(data) * test_split)
-    X_train, X_test = padded[perm[:point]], padded[perm[point:]]
-    y_train, y_test = vals[perm[:point]], vals[perm[point:]]
-
-    return X_train, y_train, X_test, y_test
-
-
-def newfunc(data, pad=600, holdout=.15, validation=.15, seed=42,
-            mode='both'):
-    """ Generate a train-validation-test dataset.
+def generate_dataset(data, pad=600, holdout=.15, validation=.15, seed=42,
+                     mode='both'):
+    """ SORRY FOR THE MESS!!!
+    Generate a train-validation-test dataset.
     Arguments:
         data: (pd.DataFrame): data as given by the load_data function
         pad (int): Specific pad with zeros /truncate value.
@@ -215,7 +177,7 @@ def newfunc(data, pad=600, holdout=.15, validation=.15, seed=42,
     if mode == 'class':
         y_all = labels
     elif mode == 'rating':
-        y_all == vals
+        y_all = vals
     else:
         if mode != 'both':
             print("Unrecognized option ", mode, " for 'mode' argument, "
@@ -245,4 +207,4 @@ def newfunc(data, pad=600, holdout=.15, validation=.15, seed=42,
     X_test, y_test = tokens[idc_holdout], y_all[idc_holdout]
     X_val, y_val = tokens[idc_validation], y_all[idc_validation]
 
-    return X_train, y_train, X_val, y_val, X_test, y_test, tkn
+    return ((X_train, y_train), (X_val, y_val), (X_test, y_test)), tkn
