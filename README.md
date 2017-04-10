@@ -39,16 +39,20 @@ in 1-dimension. Take a look at this image, I hope it makes sense:
 ### This model
 
 **Input (N samples x N words) or here (1000 x 1000 x 1)**
+
 Let's say we have 1000 samples that we pad to 1000 words each.
 The words are hashed into integer values which we feed to the network
 
 **Embedding (1000 x 400)**
+
 We embed the integers into a 400-dimensional space
 
 **First convolutions (1000 x N features[0]), (1000 x N features[0])**
+
 We apply a 2-gram and a 5-gram convolution over the input
 
 **Second convolutions (500 x N features[1]), (500 x N features[1])**
+
 We max pool each previous level's layer and run a 3-window convolution.
 
 **...**
@@ -57,19 +61,24 @@ After we've reached the desired depth we merge and Average pool **each level**,
 concatenate them and feed them to a dense network
 
 **Merge**
+
 (1000 x N features), (1000 x N features) -> (1000 x 2\*N features)
 
 **Average Pool**
+
 (1000 x 2\*N features) -> (,2\*N features)
 
 **Concatenate**
+
 (,2\*N features[0] + 2\*N features[1] etc...)
 
 **Dense**
+
 (N allfeatures, N dense)
 
 **Output**
-The model can predit class, rating or both. I will train to see what works
+
+The model can predict class, rating or both. I will train to see what works
 best.
 
 ## A simple usage scenario!!!
