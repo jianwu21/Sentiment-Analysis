@@ -1,22 +1,25 @@
-""" Utilities for the sentiment analysis project
-Useful ones:
-    download_data: Checks and downloads data...
-    generate_dataset: Generate train/test sets from data
-"""
+""" Utilities for the sentiment analysis project """
 import os
 import urllib.request
 import traceback
 import re
 import zipfile
 
-from gensim.models import Word2Vec
-from keras.preprocessing import sequence, text
+from keras.preprocessing import sequence
 import numpy as np
 import pandas as pd
 
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
 REVIEWERS = ["Dennis+Schwartz", "James+Berardinelli", "Steve+Rhodes"]
+FILTS = '#$%&*+-/<=>@[\\]^_`{|}~\t\n'
+PREFIXES = r"(Mr|St|Mrs|Ms|Dr|Inc|Ltd|Jr|Sr|Co)[.]"
+MAPS = [0, 1, 1, 1, 1, 1, 2, 3, 4, 4, 4, 5, 5, 6, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 18, 18, 18, 19, 19, 19, 19,
+        19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+        19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 20, 21, 22, 23,
+        24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+        41, 42, 43, 44, 45]
 
 
 def download_data(override=False, path="./data", url=URL):
@@ -69,7 +72,7 @@ def load_data(path="./data"):
         ratings = np.loadtxt(path + '/scaledata/' + reviewer +
                              '/rating.' + reviewer)
         labels = np.loadtxt(path + '/scaledata/' + reviewer +
-                             '/label.3class.' + reviewer)
+                            '/label.3class.' + reviewer)
         reviewers = [i for j in range(len(ratings))]
         text_data = []
         for text_file in files:
@@ -81,109 +84,14 @@ def load_data(path="./data"):
                                          'ratings': ratings,
                                          'text': text_data}),
                            ignore_index=True)
+    data = data.drop([449, 91, 2793])
     return data
 
 
-def tokenize(sent):
-    return re.findall(r"[\w]+|[^\s\w]", sent.lower())
-
-
-def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
-    """ Generate word2vec model using gensim and save it to disk
-    Arguments:
-        sentences (list of strings): Sentences to train the model
-        fname (str)
-        ALL ADDITIONAL KWARGS WILL BE PASSED TO WORD2VEC
-    Returns:
-        vocabulary of the model (dict-like)
-    """
-    if os.path.exists(fname):
-        action = input("There is a model for word2vect.\n"
-                       "Do you want to generate a new one? (n or any key)\n")
-        if action.lower() == 'n':
-            return load_word2vec()
-
-    stripped = [tokenize(x) for x in sentences]
-    model = Word2Vec(stripped, **kwargs)
-    model.save(fname)
-    return model.wv
-
-
-def load_word2vec(fname="./data/w2vmodel"):
-    """ Load a word2vec dictionary.
-    Arguments:
-        fname(str)
-    Returns:
-        vocabulary (dict-like)
-    """
-    model = Word2Vec.load(fname)
-    return model.wv
-
-
-def text2vec(text_data, model=None, lim=0):
-    """ Tokenization for doc
-    Arguments:
-        text_data (list of sentences)
-        model (word2vec model): trained model's vocabulary
-        lim (int): drop sentences with less than this number of tokens
-    Returns:
-        vectors transformed from the doc (list)
-    """
-    if model is None:
-        model = load_word2vec()
-    vecs = [np.array([model[w] for w in tokenize(x) if w in model.vocab])
-            for x in text_data]
-    return [v for v in vecs if v.shape[0] >= lim]
-
-
-def generate_dataset(data, pad=600, holdout=.15, validation=.15, seed=42,
-                     mode='both'):
-    """ SORRY FOR THE MESS!!!
-    Generate a train-validation-test dataset.
-    Arguments:
-        data: (pd.DataFrame): data as given by the load_data function
-        pad (int): Specific pad with zeros /truncate value.
-        houldout (float): Fration of data for holdout set
-        validation (float): Fration of data for validation set
-        seed (int): Random seed argument for reliable random splitting
-        mode (st): y values to return, one of 'rating', 'class', 'both'
-    Returns:
-        X_train, y_train, X_val, y_val, X_test, y_test, tokenizer
+def dataset_split(vals, holdout=.2, validation=.2, seed=42):
+    """ Generate a train-validation-test dataset.
     """
     np.random.seed(seed)
-
-    # Remove the last 5% of the review
-    data.text = data.text.apply(lambda x: x[:-len(x)//20])
-
-    tkn = text.Tokenizer(6000)
-    tkn.fit_on_texts(data.text.values)
-    tokens = np.array(tkn.texts_to_sequences(data.text.values))
-
-    vals = data.ratings.values
-    labels = data.classes.values
-    reviewers = data.reviewers.values
-
-    # Get length of reviews in tokens
-    lens = np.array([len(x) for x in tokens])
-
-    # Remove reviews, ratings, labels, and reviewers for reviews
-    # 2 standard deviations smaller than the mean
-    filt = [lens >= (lens.mean() - 2*lens.std())]
-    tokens = tokens[filt]
-    vals = vals[filt]
-    labels = labels[filt]
-    reviewers = reviewers[filt]
-
-    if mode == 'class':
-        y_all = labels
-    elif mode == 'rating':
-        y_all = vals
-    else:
-        if mode != 'both':
-            print("Unrecognized option ", mode, " for 'mode' argument, "
-                  "returning both")
-        y_all = np.c_[vals, labels]
-
     all_idc = np.arange(vals.shape[0])
     idc_holdout = []
     idc_validation = []
@@ -202,9 +110,37 @@ def generate_dataset(data, pad=600, holdout=.15, validation=.15, seed=42,
 
         idc_train.extend(idc_temp)
 
-    tokens = sequence.pad_sequences(tokens, pad)
-    X_train, y_train = tokens[idc_train], y_all[idc_train]
-    X_test, y_test = tokens[idc_holdout], y_all[idc_holdout]
-    X_val, y_val = tokens[idc_validation], y_all[idc_validation]
+    return idc_train, idc_holdout, idc_validation
 
-    return ((X_train, y_train), (X_val, y_val), (X_test, y_test)), tkn
+
+def clean_text(text):
+    """ Clean reviews text """
+    text = ' '.join([l for l in text.split('\n')if len(l) > 70])
+    text = re.sub(PREFIXES, "\\1", text)
+    text = re.split(r"©|=====|-----|\*\*\*\*\*", text)[0]
+    text = '.'.join([s for s in text.split('.')
+                     if len(s) > 10 and len(s) < 10000])
+    text = text.lower().translate(str.maketrans(FILTS, ' '*len(FILTS)))
+    return text
+
+
+def char_trans(char):
+    """ Return custom mapping for ASCII int values """
+    return MAPS[char-33] + 1
+
+
+def text_to_chars(text, sent_lim=200, doc_lim=30):
+    """ Split a text to (30 sentences x 200 characters) """
+    out = []
+    sents = clean_text(text).split('.')
+    for i, sent in enumerate(sents):
+        if i == doc_lim:
+            break
+        sent = sent.encode('ascii', errors='ignore')
+        out.append(sequence.pad_sequences([[char_trans(c) for c in sent]],
+                                          sent_lim)[0])
+    if i != doc_lim:
+        out = sequence.pad_sequences([out], doc_lim)[0]
+    else:
+        out = np.array(out)
+    return out
