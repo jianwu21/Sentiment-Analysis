@@ -31,28 +31,28 @@ def create_kwargs(layer, kwargs):
 def god_model(input_shape, **kwargs):
     """ Bi-directional GRUs for sentiment analysis """
     def_kwargs = {"encoder_layers": 2,
-                  "encoder_units": 128,
+                  "encoder_units": 100,
                   "encoder_activation": 'relu',
                   "encoder_dropout": 0.5,
                   "encoder_recurrent_dropout": 0.2,
-                  "encoder_l2_activity": 1e-3,
-                  "encoder_l2_kernel": 0.0,
-                  "encoder_l2_bias": 0.0,
+                  "encoder_l2_activity": 1e-8,
+                  "encoder_l2_kernel": 1e-8,
+                  "encoder_l2_bias": 1e-8,
                   "encoder_final_dropout": 0.5,
                   "analyzer_layers": 2,
-                  "analyzer_units": 64,
+                  "analyzer_units": 50,
                   "analyzer_dropout": 0.5,
                   "analyzer_recurrent_dropout": 0.2,
                   "analyzer_activation": 'relu',
-                  "analyzer_l2_activity": 1e-3,
-                  "analyzer_l2_kernel": 0.0,
-                  "analyzer_l2_bias": 0.0,
+                  "analyzer_l2_activity": 1e-8,
+                  "analyzer_l2_kernel": 1e-8,
+                  "analyzer_l2_bias": 1e-8,
                   "analyzer_final_dropout": 0.5,
-                  "dense_units": 128,
+                  "dense_units": 500,
                   "dense_dropout": 0.5,
-                  "dense_l2_activity": 1e-3,
-                  "dense_l2_kernel": 0.0,
-                  "dense_l2_bias": 0.0}
+                  "dense_l2_activity": 1e-8,
+                  "dense_l2_kernel": 1e-8,
+                  "dense_l2_bias": 1e-8}
 
     for key, val in def_kwargs.items():
         if key not in kwargs.keys():
@@ -62,9 +62,10 @@ def god_model(input_shape, **kwargs):
     sent_in = Input((input_shape[-1],), name='characters_input')
 
     # Embed ASCII int values to a 10 dimensional space
-    embed = Embedding(input_dim=50, output_dim=10,
+    embed = Embedding(input_dim=47, output_dim=10,
                       input_length=input_shape[-1],
                       mask_zero=True,
+                      embeddings_regularizer=l2(1e-7),
                       name='charaters_embedding')(sent_in)
 
     # Initialize GRU layers
