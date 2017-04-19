@@ -136,6 +136,9 @@ def text2vec(text_data, model=None, lim=0):
     return [v for v in vecs if v.shape[0] >= lim]
 
 
+"""
+mabe we need , I am not sure
+"""
 def generate_dataset(data, pad=600, holdout=.15, validation=.15, seed=42,
                      mode='both'):
     """ SORRY FOR THE MESS!!!
@@ -208,3 +211,28 @@ def generate_dataset(data, pad=600, holdout=.15, validation=.15, seed=42,
     X_val, y_val = tokens[idc_validation], y_all[idc_validation]
 
     return ((X_train, y_train), (X_val, y_val), (X_test, y_test)), tkn
+
+
+def dataset_split(vals, holdout=.2, validation=.2, seed=42):
+    """ Generate a train-validation-test dataset.
+    """
+    np.random.seed(seed)
+    all_idc = np.arange(vals.shape[0])
+    idc_holdout = []
+    idc_validation = []
+    idc_train = []
+    for rating in np.unique(vals)[1:]:
+        idc_temp = all_idc[vals == rating]
+        N_holdout = int(holdout * len(idc_temp))
+        idc_holdout_temp = np.random.permutation(np.arange(idc_temp.size))
+        idc_holdout.extend(idc_temp[idc_holdout_temp][:N_holdout])
+        idc_temp = np.delete(idc_temp, idc_holdout_temp[:N_holdout])
+
+        N_validation = int(validation * len(idc_temp))
+        idc_validation_temp = np.random.permutation(np.arange(idc_temp.size))
+        idc_validation.extend(idc_temp[idc_validation_temp][:N_validation])
+        idc_temp = np.delete(idc_temp, idc_validation_temp[:N_validation])
+
+        idc_train.extend(idc_temp)
+
+    return idc_train, idc_holdout, idc_validation

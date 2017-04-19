@@ -5,7 +5,9 @@ from .utilities import (
     generate_word2vec,
     load_word2vec,
     text2vec,
-    generate_dataset
+    generate_dataset,
+    dataset_split,
+    tokenize,
     )
 
 from .model import make_model, training_session
