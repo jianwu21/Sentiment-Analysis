@@ -170,7 +170,6 @@ def dataset_split(vals, holdout=.2, validation=.2, seed=42):
     return idc_train, idc_holdout, idc_validation
 
 
-
 def clean_text(text, stopwords=STOPWORDS):
     """ Clean and lowercase a text:
         - Whitespace
