@@ -10,17 +10,37 @@ import traceback
 import urllib.request
 import zipfile
 
+import keras.layers
 from keras.preprocessing import sequence
-from keras.preprocessing.text import Tokenizer
+from keras.models import load_model
 import numpy as np
 import pandas as pd
-from scipy import sparse
+
+from .model import AveragePooling
+
+
+keras.layers.AveragePooling = AveragePooling
 
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
 REVIEWERS = ["Dennis+Schwartz", "James+Berardinelli", "Steve+Rhodes"]
-
-STOPWORDS = ['dennis', 'schwartz', 'james', 'berardinelli', 'steve', 'rhodes']
+STOPWORDS = ['dennis schwartz', 'james berardinelli', 'steve rhodes',
+             'movie reviews', 'all rights reserved', 'us availability',
+             'running length' 'classification pg', 'reviewed on', 'ozus world',
+             'review written on', 'reviewed written on',
+             'reviewed by'
+             'a must see film', 'excellent show look for it',
+             'average movie kind of enjoyable',
+             'poor show dont waste your money',
+             'totally and painfully unbearable picture',
+             'opinions expressed are mine and not meant to reflect my employers',
+             'lowest rating', 'perfection', 'good memorable film',
+             'average hits and misses', 'subpar on many levels',
+             'unquestionably awful',
+             'one of the top few films of this or any year one of the worst films of this or any year totally unbearable',
+             'want free reviews and weekly movie and video recommendations via email just send me a letter with the word subscribe in the subject line',
+             'rating', 'mpaa', 'pg',
+             ]
 
 
 def download_data(override=False, path="./data", url=URL):
@@ -56,7 +76,7 @@ def download_data(override=False, path="./data", url=URL):
         print(traceback.format_exc())
 
 
-def load_data(path="./data"):
+def load_data(path="./data", reviewers=REVIEWERS):
     """ Loads text data and review scores to a pandas dataframe.
     Arguments:
         path (str), default: ./data
@@ -64,7 +84,7 @@ def load_data(path="./data"):
         pd.DataFrame(columns=["rating", "text", "reviewers", "classes"])
     """
     data = pd.DataFrame({'ratings': [], 'text': []})
-    for i, reviewer in enumerate(REVIEWERS):
+    for i, reviewer in enumerate(reviewers):
         ids = np.loadtxt(path + '/scaledata/' + reviewer + '/id.' + reviewer)
         files = ["%s/scale_whole_review/%s/txt.parag/%0.0f.txt" %
                  (path, reviewer, id)
@@ -79,12 +99,19 @@ def load_data(path="./data"):
             with open(text_file, encoding='latin-1') as fhandle:
                 text_data.append(fhandle.read())
 
+        # Reviews by dennis schartz guy have a first sentence with
+        # the actors, this leads to overfitting
+        if reviewer == "Dennis+Schwartz":
+            text_data = ['\n'.join(x.split('\n')[1:]) for x in text_data]
+
         data = data.append(pd.DataFrame({'reviewers': reviewers,
                                          'classes': labels,
                                          'ratings': ratings,
                                          'text': text_data}),
                            ignore_index=True)
+    # HACKS FOR BAD SAMPLES
     data = data.drop([449, 91, 2793])
+
     return data
 
 
@@ -143,12 +170,15 @@ def dataset_split(vals, holdout=.2, validation=.2, seed=42):
     return idc_train, idc_holdout, idc_validation
 
 
-def clean_text(text):
+
+def clean_text(text, stopwords=STOPWORDS):
     """ Clean and lowercase a text:
         - Whitespace
         - Punctuation
+        - HTML
         - Numbers
         - Non-ASCII characters
+        - Stopwords/phrases
     Arguments:
         text (str)
     Returns:
@@ -160,10 +190,13 @@ def clean_text(text):
         comp = re.compile(regex)
         text = comp.sub('', text)
     text = text.lower().strip('\n')
+    text = re.split(r"©|====|----|\*\*\*\*", text)[0]
+    pattern = re.compile(r'\b(' + r'|'.join(STOPWORDS) + r')\b\s*')
+    text = pattern.sub('', text)
     return text
 
 
-def generate_dicts(texts, fname='dict', word_lim=20000, bigram_lim=20000,
+def generate_dicts(texts, fname='dict.pkl', word_lim=20000, bigram_lim=20000,
                    override=False):
     """ Generate a word and bigram dictionary from a collection of texts.
     Arguments:
@@ -175,7 +208,7 @@ def generate_dicts(texts, fname='dict', word_lim=20000, bigram_lim=20000,
     Returns:
         None (writes to file)
     """
-    checks = (os.path.isfile('%s.pkl' % fname),
+    checks = (os.path.isfile(fname),
               not override)
     if all(checks):
         print("Dictionaries seem to be available, to force redownloading "
@@ -200,12 +233,12 @@ def generate_dicts(texts, fname='dict', word_lim=20000, bigram_lim=20000,
     bigrams = [x[0] for x in bigram_count.most_common(bigram_lim)]
     bigram_dict = {k: v+word_lim+1 for (v, k) in enumerate(bigrams)}
 
-    with open('%s.pkl' % fname, 'wb') as fhandle:
+    with open('%s' % fname, 'wb') as fhandle:
         pickle.dump([word_dict, bigram_dict], fhandle)
-        print("\nModel saved to '%s.pkl'." % fname)
+        print("\nModel saved to '%s'." % fname)
 
 
-def texts_to_sequences(texts, fname='dict', pad=1000, bigrams=True):
+def texts_to_sequences(texts, fname='dict.pkl', pad=1000, bigrams=True):
     """ Convert a collection to texts to zero-padded integer arrays
     using preexisting dictionaries.
     Arguments:
@@ -216,19 +249,18 @@ def texts_to_sequences(texts, fname='dict', pad=1000, bigrams=True):
     Returns:
         X (np.array) (n_samples x pad): Processed samples
     """
-    if not os.path.isfile('%s.pkl' % fname):
-        print("'%s.pkl' does not exist, specify another dict or use"
+    if not os.path.isfile(fname):
+        print("'%s' does not exist, specify another dict or use"
               "'generate_dicts' function first." % fname)
         return None
 
-    with open('%s.pkl' % fname, 'rb') as fhandle:
+    with open(fname, 'rb') as fhandle:
         word_dict, bigram_dict = pickle.load(fhandle)
     out = []
 
     for text in texts:
         temp = []
-        clean = clean_text(text)
-        tokens = [w for w in clean.split() if w not in STOPWORDS]
+        tokens = clean_text(text).split()
         for i in range(len(tokens)-1):
             temp.append(word_dict.get(tokens[i], 0))
             if bigrams:
@@ -238,3 +270,45 @@ def texts_to_sequences(texts, fname='dict', pad=1000, bigrams=True):
         out.append(temp)
     out = sequence.pad_sequences(out, pad)
     return out
+
+
+def predict_from_texts(texts, model_fname='last_model.h5',
+                       pad=1000, bigrams=True):
+    """ Get a sentiment prediction [0.0, 1.0] from texts.
+    Arguments:
+        texts (array-like)
+        model_fname: Filename of saved keras model
+        pad (int): Pad value, as model was trained on
+        bigrams (bool): Wether to use bigrams, as model was trained on
+    Returns:
+        y_pred (np.array(float)), shaped (len(texts),)
+    """
+    clf = load_model(model_fname)
+    sequences = texts_to_sequences(texts, pad=pad, bigrams=bigrams)
+    y_pred = clf.predict(sequences)
+    return y_pred
+
+
+def interactive_session(model_fname='last_model.h5', pad=1000, bigrams=True):
+    """ Starts an interactive sentiment analysis session.
+    Arguments:
+        model_fname: Filename of saved keras model
+        pad (int): Pad value, as model was trained on
+        bigrams (bool): Wether to use bigrams, as model was trained on
+    Returns:
+        None
+    Type 'q' to quit
+    """
+    clf = load_model(model_fname)
+    clf = load_model(model_fname)
+    last_input = ''
+    print("Insert the sentence and then enter (just a 'q' to quit)")
+    while last_input.lower() != 'q':
+        last_input = input()
+        if last_input != '':
+            sequences = texts_to_sequences([last_input],
+                                           pad=pad, bigrams=bigrams)
+            rating = clf.predict(sequences)[0]
+            print(" --> %.2f" % rating)
+    del keras.layers
+    print("Bye!")
