@@ -11,6 +11,28 @@
 #### Example output of current model
 
 
+	_________________________________________________________________
+	Layer (type)                 Output Shape              Param #
+	=================================================================
+	input_2 (InputLayer)         (None, 1000)              0
+	_________________________________________________________________
+	embedding_2 (Embedding)      (None, 1000, 100)         4000100
+	_________________________________________________________________
+	average_pooling_2 (AveragePo (None, 100)               0
+	_________________________________________________________________
+	dropout_3 (Dropout)          (None, 100)               0
+	_________________________________________________________________
+	dense_3 (Dense)              (None, 200)               20200
+	_________________________________________________________________
+	dropout_4 (Dropout)          (None, 200)               0
+	_________________________________________________________________
+	dense_4 (Dense)              (None, 1)                 201
+	=================================================================
+	Total params: 4,020,501
+	Trainable params: 4,020,501
+	Non-trainable params: 0
+	_________________________________________________________________
+
 *A cinematic achievement of amazing depth. Marvellous acting, captivating score,
 a journey in a time when directors produced masterpieces. one of a kind, my favorite film,
 I LOVE IT!*
