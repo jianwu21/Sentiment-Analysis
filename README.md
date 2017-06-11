@@ -75,3 +75,8 @@ and then for two epochs on our dataset.
 The nature and number of the data lead to overfitting on many occasions,
 so our model's accuracy cannot estimated without too much variance. We expect,
 however, to score better than chance.
+
+
+#### Final
+
+I gave up the LSTM since the absolute error was very big.Please see [Final Result](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo.ipynb).
