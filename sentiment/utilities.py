@@ -10,6 +10,7 @@ import traceback
 import urllib.request
 import zipfile
 
+from gensim.models import word2vec
 import keras.layers
 from keras.preprocessing import sequence
 from keras.models import load_model
@@ -74,45 +75,6 @@ def download_data(override=False, path="./data", url=URL):
     except Exception:
         print("An error occured. DEBUG INFO:")
         print(traceback.format_exc())
-
-
-def load_data(path="./data", reviewers=REVIEWERS):
-    """ Loads text data and review scores to a pandas dataframe.
-    Arguments:
-        path (str), default: ./data
-    Returns:
-        pd.DataFrame(columns=["rating", "text", "reviewers", "classes"])
-    """
-    data = pd.DataFrame({'ratings': [], 'text': []})
-    for i, reviewer in enumerate(reviewers):
-        ids = np.loadtxt(path + '/scaledata/' + reviewer + '/id.' + reviewer)
-        files = ["%s/scale_whole_review/%s/txt.parag/%0.0f.txt" %
-                 (path, reviewer, id)
-                 for id in ids]
-        ratings = np.loadtxt(path + '/scaledata/' + reviewer +
-                             '/rating.' + reviewer)
-        labels = np.loadtxt(path + '/scaledata/' + reviewer +
-                            '/label.3class.' + reviewer)
-        reviewers = [i for j in range(len(ratings))]
-        text_data = []
-        for text_file in files:
-            with open(text_file, encoding='latin-1') as fhandle:
-                text_data.append(fhandle.read())
-
-        # Reviews by dennis schartz guy have a first sentence with
-        # the actors, this leads to overfitting
-        if reviewer == "Dennis+Schwartz":
-            text_data = ['\n'.join(x.split('\n')[1:]) for x in text_data]
-
-        data = data.append(pd.DataFrame({'reviewers': reviewers,
-                                         'classes': labels,
-                                         'ratings': ratings,
-                                         'text': text_data}),
-                           ignore_index=True)
-    # HACKS FOR BAD SAMPLES
-    data = data.drop([449, 91, 2793])
-
-    return data
 
 
 def load_imdb():
@@ -271,43 +233,141 @@ def texts_to_sequences(texts, fname='dict.pkl', pad=1000, bigrams=True):
     return out
 
 
-def predict_from_texts(texts, model_fname='last_model.h5',
-                       pad=1000, bigrams=True):
-    """ Get a sentiment prediction [0.0, 1.0] from texts.
+def load_data(path="./data", category='train'):
+    """ Loads text data and review scores to a pandas dataframe.
     Arguments:
-        texts (array-like)
-        model_fname: Filename of saved keras model
-        pad (int): Pad value, as model was trained on
-        bigrams (bool): Wether to use bigrams, as model was trained on
+        path (str), default: ./data
     Returns:
-        y_pred (np.array(float)), shaped (len(texts),)
+        pd.DataFrame(columns=["rating", "text", "reviewers", "classes"])
     """
-    clf = load_model(model_fname)
-    sequences = texts_to_sequences(texts, pad=pad, bigrams=bigrams)
-    y_pred = clf.predict(sequences)
-    return y_pred
+    data = pd.DataFrame({'ratings': [], 'text': []})
+    if category=='train':
+        reviewers = ["Dennis+Schwartz", "James+Berardinelli",
+                                       "Steve+Rhodes"]
+    elif category=='test':
+        reviewers = ['Scott+Renshaw']
+    for i, reviewer in enumerate(reviewers):
+        ids = np.loadtxt(path + '/scaledata/' + reviewer + '/id.' + reviewer)
+        files = ["%s/scale_whole_review/%s/txt.parag/%0.0f.txt" %
+                 (path, reviewer, id)
+                 for id in ids]
+        ratings = np.loadtxt(path + '/scaledata/' + reviewer +
+                             '/rating.' + reviewer)
+        labels = np.loadtxt(path + '/scaledata/' + reviewer +
+                            '/label.3class.' + reviewer)
+        reviewers = [i for j in range(len(ratings))]
+        text_data = []
+        for text_file in files:
+            with open(text_file, encoding='latin-1') as fhandle:
+                text_data.append(fhandle.read())
+
+        # Reviews by dennis schartz guy have a first sentence with
+        # the actors, this leads to overfitting
+        if reviewer == "Dennis+Schwartz":
+            text_data = ['\n'.join(x.split('\n')[1:]) for x in text_data]
+
+        data = data.append(pd.DataFrame({'reviewers': reviewers,
+                                         'classes': labels,
+                                         'ratings': ratings,
+                                         'text': text_data,
+                                         'id':ids}),
+                           ignore_index=True)
+    # HACKS FOR BAD SAMPLES
+    if category == 'train':
+        data = data.drop([449, 91, 2793])
+
+    return data
 
 
-def interactive_session(model_fname='last_model.h5', pad=1000, bigrams=True):
-    """ Starts an interactive sentiment analysis session.
+def load_imdb():
+    """ Actually assumes you have downloaded and extracted the imdb dataset
+    from http://ai.stanford.edu/~amaas/data/sentiment/ """
+    path = 'data/aclImdb/train/'
+    data = pd.DataFrame({'ratings': [], 'text': []})
+    text_data = []
+    ratings = []
+    for cat in ('pos', 'neg'):
+        for fname in glob.glob('%s/%s/*.txt' % (path, cat)):
+            with open(fname, encoding='latin-1') as fhandle:
+                text_data.append(fhandle.read())
+                ratings.append(1.0 if cat == 'pos' else 0.0)
+    data = data.append(pd.DataFrame({'ratings': ratings, 'text': text_data}))
+    data = data.reindex(np.random.permutation(data.index))
+    return data
+
+
+def dataset_split(vals, holdout=.2, validation=.2, seed=42):
+    """ Generate a train-validation-test dataset, weighted for rating
+    values rounded to 1 decimal digit.
     Arguments:
-        model_fname: Filename of saved keras model
-        pad (int): Pad value, as model was trained on
-        bigrams (bool): Wether to use bigrams, as model was trained on
+        vals (list): values to split with respect to
+        holdout (float): portion of holdout set
+        validation (float): portion of validation set
+        seed (int): seed number for reproducability
     Returns:
-        None
-    Type 'q' to quit
+        idc_train, idc_holdout, idc_validation (np.array)
+        Indexes for each dataset
+    Example:
+        >>> idc_train, idc_holdout, idc_validation = dataset_split(y)
+        >>> X_train, y_train = X[idc_train], y[idc_train]
+        >>> X_test, y_test = X[idc_validation], y[idc_validation]
     """
-    clf = load_model(model_fname)
-    clf = load_model(model_fname)
-    last_input = ''
-    print("Insert the sentence and then enter (just a 'q' to quit)")
-    while last_input.lower() != 'q':
-        last_input = input()
-        if last_input != '':
-            sequences = texts_to_sequences([last_input],
-                                           pad=pad, bigrams=bigrams)
-            rating = clf.predict(sequences)[0]
-            print(" --> %.2f" % rating)
-    del keras.layers
-    print("Bye!")
+    np.random.seed(seed)
+    all_idc = np.arange(vals.shape[0])
+    idc_holdout = []
+    idc_validation = []
+    idc_train = []
+    for rating in np.unique(np.round(vals, 1)):
+        idc_temp = all_idc[vals == rating]
+        N_holdout = int(holdout * len(idc_temp))
+        idc_holdout_temp = np.random.permutation(np.arange(idc_temp.size))
+        idc_holdout.extend(idc_temp[idc_holdout_temp][:N_holdout])
+        idc_temp = np.delete(idc_temp, idc_holdout_temp[:N_holdout])
+
+        N_validation = int(validation * len(idc_temp))
+        idc_validation_temp = np.random.permutation(np.arange(idc_temp.size))
+        idc_validation.extend(idc_temp[idc_validation_temp][:N_validation])
+        idc_temp = np.delete(idc_temp, idc_validation_temp[:N_validation])
+
+        idc_train.extend(idc_temp)
+
+    return idc_train, idc_holdout, idc_validation
+
+
+def generate_word2vec(sentences, fname="./data/w2vmodel", **kwargs):
+    
+    stripped = [re.findall(r"[\w]+|[^\s\w]", x.lower()) for x in sentences]
+    model = word2vec.Word2Vec(stripped, **kwargs)
+    model.save(fname)
+    return model.wv
+
+
+def load_model(fname):
+    model = word2vec.Word2Vec.load(fname)
+    return model.wv
+
+
+def text2vec(texts, fname="./data/w2vmodel"):
+    model = load_model(fname)
+    
+    a = []
+    for text in texts:
+        stripped = [re.findall(r"[\w]+|[^\s\w]", text.lower())]
+        vecs = []
+        for sentences in stripped:
+            for word in sentences:
+                if word in model.vocab.keys():
+                    vecs.append(model[word])
+        
+        a.append(np.mean(vecs, axis=0))
+        
+    return np.array(a)
+
+
+def y_trainable(y):
+    return np.array([round(i) for i in y])
+
+
+def mean_absolute_error(y_true, y_pred):
+    return np.absolute(y_pred - y_true).mean()/10
+
