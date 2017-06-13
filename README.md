@@ -69,7 +69,9 @@ gives  0.38
 We trained first for an epoch on some IMDB [data](http://ai.stanford.edu/~amaas/data/sentiment/)
 and then for two epochs on our dataset.
 
-I use [SVM](https://en.wikipedia.org/wiki/Support_vector_machine)
+The model for training:
+* [SVM](https://en.wikipedia.org/wiki/Support_vector_machine)
+* [Random Forest](https://en.wikipedia.org/wiki/Random_forest)
 
 
 #### Comments
