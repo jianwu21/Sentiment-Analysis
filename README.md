@@ -79,4 +79,7 @@ however, to score better than chance.
 
 #### Final
 
-I gave up the LSTM since the absolute error was very big.Please see [Final Result](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo.ipynb).
+I gave up the LSTM since the absolute error was very big As the comments mentioned.  
+* [Final Result for BOW](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo_BOW.ipynb).
+* [Final Result for word2vec](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo_word2vec.ipynb)
+
