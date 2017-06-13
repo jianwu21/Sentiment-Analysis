@@ -69,13 +69,14 @@ gives  0.38
 We trained first for an epoch on some IMDB [data](http://ai.stanford.edu/~amaas/data/sentiment/)
 and then for two epochs on our dataset.
 
+I use [SVM](https://en.wikipedia.org/wiki/Support_vector_machine)
+
 
 #### Comments
 
 The nature and number of the data lead to overfitting on many occasions,
 so our model's accuracy cannot estimated without too much variance. We expect,
 however, to score better than chance.
-
 
 #### Final
 
