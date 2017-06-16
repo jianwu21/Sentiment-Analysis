@@ -17,11 +17,6 @@ from keras.models import load_model
 import numpy as np
 import pandas as pd
 
-from .model import AveragePooling
-
-
-keras.layers.AveragePooling = AveragePooling
-
 
 URL = "http://2.110.57.134/LangProc2/scaledata_TRAIN.zip"
 REVIEWERS = ["Dennis+Schwartz", "James+Berardinelli", "Steve+Rhodes"]
@@ -359,7 +354,7 @@ def text2vec(texts, fname="./data/w2vmodel"):
                 if word in model.vocab.keys():
                     vecs.append(model[word])
         
-        a.append(np.mean(vecs, axis=0))
+        a.append(np.sum(vecs, axis=0))
         
     return np.array(a)
 
