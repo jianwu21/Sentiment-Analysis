@@ -1,12 +1,28 @@
-# FastSent
-###### A project for Language Processing 2 - Group 3
+# Please read me!!!
+### A project for Language Processing 2(Final Project) - JianWu(xcb479)
+***Note***
 
----
+```python
+ipython notebook demo_BOW.ipynb
+```
+or 
+```python
+ipython notebook demo_word2vec.ipynb
+```
+***The quickly link for Result***
+
+* [Final Result for BOW](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo_BOW.ipynb).
+* [Final Result for word2vec](https://github.com/JaggerWu/Sentiment-Analysis/blob/master/demo_word2vec.ipynb)
+
+#### About `./sentiment`
+
+I write all available funtion in `./sentiment`
 
 #### Credits
 
 - [fastText](https://github.com/facebookresearch/fastText) by facebook
 - the [keras tutorial](https://github.com/fchollet/keras/blob/master/examples/imdb_fasttext.py) on the subject
+- [word2vec](https://radimrehurek.com/gensim/models/word2vec.html)
 
 #### Example output of current model
 
@@ -33,52 +49,24 @@ gives 0.45
 gives  0.38
 
 
-
-#### Architecture
-
-
-	_________________________________________________________________
-	Layer (type)                 Output Shape              Param #
-	=================================================================
-	input_2 (InputLayer)         (None, 1000)              0
-	_________________________________________________________________
-	embedding_2 (Embedding)      (None, 1000, 100)         4000100
-	_________________________________________________________________
-	average_pooling_2 (AveragePo (None, 100)               0
-	_________________________________________________________________
-	dropout_3 (Dropout)          (None, 100)               0
-	_________________________________________________________________
-	dense_3 (Dense)              (None, 200)               20200
-	_________________________________________________________________
-	dropout_4 (Dropout)          (None, 200)               0
-	_________________________________________________________________
-	dense_4 (Dense)              (None, 1)                 201
-	=================================================================
-	Total params: 4,020,501
-	Trainable params: 4,020,501
-	Non-trainable params: 0
-	_________________________________________________________________
-
-- Assign a unique integer to the 20000 most common words and bigrams
-- Take the dot product of the one-hot representation to create a N dimensions embedding
-- Drop a dense layer
-- Put a softmax on top to get the so-called rating
-
 #### Training
 
-We trained first for an epoch on some IMDB [data](http://ai.stanford.edu/~amaas/data/sentiment/)
-and then for two epochs on our dataset.
+The [data set background](http://lab.homunculus.dk/cgi-bin/LangProc2/news.cgi) for training and testing.
+
+***Also***
+
+You can type
+```python
+from sentiment.utilities import download_data
+
+download_data()
+```
+to download dataset
 
 The model for training:
 * [SVM](https://en.wikipedia.org/wiki/Support_vector_machine)
 * [Random Forest](https://en.wikipedia.org/wiki/Random_forest)
 
-
-#### Comments
-
-The nature and number of the data lead to overfitting on many occasions,
-so our model's accuracy cannot estimated without too much variance. We expect,
-however, to score better than chance.
 
 #### Final
 
